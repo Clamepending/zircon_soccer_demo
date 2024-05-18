@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <zirconLib.h>
 
-#define LINE_THRESHOLD 450
+#define LINE_THRESHOLD 650
 #define MOTOR_POWER 140
 #define BALL_CALIBRATION_X 0
 #define BALL_CALIBRATION_Y 0
@@ -103,7 +103,7 @@ void setup(void)
 }
 
 float move_angle_from_default;
-Vector2D moveVector;
+Vector2D moveVector = Vector2D(0, 0);
 Vector2D ballVector;
 
 void loop(void)
@@ -126,6 +126,12 @@ void loop(void)
     compassDiff += 360;
   }
 
+  Serial.println("ball vector: " + ballVector.toString() 
+    + " line sensor 1: " + String(readLine(1)) 
+    + " line sensor 2: " + String(readLine(2)) 
+    + " line sensor 3: " + String(readLine(3)) 
+    );
+
 
   if (readLine(1) > LINE_THRESHOLD) {
     motor1(MOTOR_POWER, 0);
@@ -146,7 +152,7 @@ void loop(void)
 
     
   } else {
-    // Serial.println("ball vector: " + ballVector.toString() + " compass diff: " + String(compassDiff/180.0));
+    
 
     // orbit
     
@@ -160,23 +166,26 @@ void loop(void)
     float orbit_addition = min(M_PI/2, M_PI*(0.04f * pow(M_E, 0.12f * abs(180*angle_from_front/M_PI)))/180);
     
     float ball_vec_magnitude = sqrt(ballVector.x * ballVector.x + ballVector.y * ballVector.y);
-    float dampened_orbit_addition = orbit_addition * max(1.0, 0.04f * pow(M_E, 0.004f * (ball_vec_magnitude - 100)));
+    float dampened_orbit_addition = orbit_addition * max(1.0, 0.04f * pow(M_E, 0.002f * (ball_vec_magnitude - 100)));
     
     if (angle_from_front < 0) {
       dampened_orbit_addition *= -1;
-    }
+    } 
 
     move_angle_from_default = angle_from_front + dampened_orbit_addition + M_PI/2;
     
-    moveVector.x = cos(move_angle_from_default);
-    moveVector.y = sin(move_angle_from_default);
+    moveVector.x = 0.01 * cos(move_angle_from_default) + 0.9 * moveVector.x;
+    moveVector.y = 0.01 * sin(move_angle_from_default) + 0.99 * moveVector.x;
 
 
-    if (ball_vec_magnitude < 30) {
-      moveVector.x = 0;
-      moveVector.y = 0;
+    if (ball_vec_magnitude < 300) {
+      motor1(0,0);
+      motor2(0,0);
+      motor3(0,0);
+    } else {
+      moveMotors(moveVector, compassDiff/180.0);
     }
-    moveMotors(moveVector, compassDiff/180.0);
+    
   }
 
 
